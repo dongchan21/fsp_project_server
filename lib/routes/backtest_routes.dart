@@ -19,7 +19,9 @@ class BacktestRoutes {
       print("──────────────────────────────────────────────");
 
         final symbols = List<String>.from(data['symbols']);
-        final weights = List<double>.from(data['weights']);
+        final weights = (data['weights'] as List)
+            .map((w) => (w as num).toDouble())
+            .toList();
         final startDate = DateTime.parse(data['startDate']);
         final endDate = DateTime.parse(data['endDate']);
         final initialCapital = (data['initialCapital'] as num).toDouble();

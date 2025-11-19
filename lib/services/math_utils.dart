@@ -34,6 +34,15 @@ double calculateSharpe(List<double> monthlyReturns, {double riskFreeRate = 0.03}
   return excessReturn / (stdDev * sqrt(12));
 }
 
+// ────────────── 변동성 (Volatility) 계산 ──────────────
+// monthlyReturns: 월별 수익률 리스트
+// 연율화된 변동성 반환 (월간 표준편차 × √12)
+double calculateVolatility(List<double> monthlyReturns) {
+  if (monthlyReturns.isEmpty) return 0.0;
+  final stdDev = _stdDev(monthlyReturns);
+  return stdDev * sqrt(12); // 연율화
+}
+
 // ────────────── 표준편차 유틸 ──────────────
 double _stdDev(List<double> data) {
   if (data.length < 2) return 0.0;

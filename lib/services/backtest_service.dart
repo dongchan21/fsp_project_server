@@ -67,14 +67,16 @@ Future<Map<String, dynamic>> runBacktest({
   final mdd = calculateMDD(pricesKRW);
   final sharpe = calculateSharpe(monthlyReturns);
 
+  // ✅ 클라이언트가 예상하는 형식으로 반환
   return {
-    'symbols': symbols,
-    'portfolioGrowth': portfolioGrowth,
-    'summary': {
-      'totalReturn': totalReturn,
-      'annualReturn': annualReturn,
-      'mdd': mdd,
-      'sharpe': sharpe,
-    }
+    'totalReturn': totalReturn,
+    'annualizedReturn': annualReturn,
+    'volatility': calculateVolatility(monthlyReturns),
+    'sharpeRatio': sharpe,
+    'maxDrawdown': mdd,
+    'history': portfolioGrowth.map((item) => {
+      'date': item['date'],
+      'value': item['totalSeedKRW'],
+    }).toList(),
   };
 }
