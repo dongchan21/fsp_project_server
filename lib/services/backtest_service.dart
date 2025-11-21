@@ -44,22 +44,42 @@ Future<Map<String, Map<DateTime, double>>> _loadPriceHistoryFromApi(
   return data;
 }
 
-// Prefetch monthly first trading day data to ensure DB is populated before standard history fetch.
-Future<void> _prefetchMonthlyFirstDay(List<String> symbols, DateTime startDate, DateTime endDate) async {
+// Prefetch monthly first trading day data from listing to current month, and return earliest date per symbol.
+Future<Map<String, DateTime>> _prefetchMonthlyFirstDay(List<String> symbols) async {
   final base = _marketBaseUrl();
-  final start = _ymd(_firstOfMonth(startDate));
-  final end = _ymd(_firstOfMonth(endDate));
+  // Always backfill from a far past date; yfinance returns from the first listing date.
+  final start = '2000-01-01';
+  final now = DateTime.now();
+  final end = _ymd(_firstOfMonth(DateTime(now.year, now.month)));
+  final result = <String, DateTime>{};
   for (final symbol in symbols) {
     final uri = Uri.parse('$base/v1/price/monthly_firstday/${symbol.toUpperCase()}')
         .replace(queryParameters: {'start': start, 'end': end});
-    final resp = await http.get(uri);
+    http.Response resp;
+    try {
+      resp = await http.get(uri);
+    } catch (e) {
+      stderr.writeln('WARN monthly_firstday_prefetch_conn_failed symbol=$symbol error=$e');
+      continue;
+    }
     if (resp.statusCode != 200) {
       // Log but do not fail the entire backtest; fallback to history anyway.
       stderr.writeln('WARN monthly_firstday_prefetch_failed symbol=$symbol status=${resp.statusCode} body=${resp.body}');
-    } else {
-      stderr.writeln('INFO monthly_firstday_prefetch_ok symbol=$symbol');
+      continue;
+    }
+    stderr.writeln('INFO monthly_firstday_prefetch_ok symbol=$symbol');
+    try {
+      final points = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+      if (points.isNotEmpty) {
+        final first = points.first;
+        final dt = DateTime.parse(first['date'] as String);
+        result[symbol.toUpperCase()] = _firstOfMonth(dt);
+      }
+    } catch (_) {
+      // ignore parse errors, rely on history fetch later
     }
   }
+  return result;
 }
 
 Future<Map<DateTime, double>> _loadExchangeRatesFromApi(
@@ -97,41 +117,79 @@ Future<Map<String, dynamic>> runBacktest({
   required double initialCapital,
   required double dcaAmount,
 }) async {
+  final monthlyReturns = <double>[];
+  final pricesKRW = <double>[];
+  // Prefetch monthly first trading day rows from listing to current month, and compute adjusted start
+  final earliestMap = await _prefetchMonthlyFirstDay(symbols);
+  DateTime adjustedStart = _firstOfMonth(startDate);
+  if (earliestMap.isNotEmpty) {
+    DateTime latestEarliest = earliestMap.values.first;
+    for (final dt in earliestMap.values) {
+      if (dt.isAfter(latestEarliest)) latestEarliest = dt;
+    }
+    if (latestEarliest.isAfter(adjustedStart)) {
+      adjustedStart = latestEarliest;
+    }
+  }
+  final stockData = await _loadPriceHistoryFromApi(symbols, adjustedStart, endDate);
+  final usdkrw = await _loadExchangeRatesFromApi(adjustedStart, endDate); // currently unused; placeholder for FX conversion
+
+  // Fallback: if prefetch did not yield earliest dates (e.g., service down),
+  // adjust start based on actual earliest data in loaded history.
+  if (earliestMap.isEmpty) {
+    DateTime? latestEarliestFromData;
+    for (final sym in symbols) {
+      final m = stockData[sym];
+      if (m == null || m.isEmpty) continue;
+      final earliest = m.keys.reduce((a, b) => a.isBefore(b) ? a : b);
+      latestEarliestFromData = latestEarliestFromData == null
+          ? earliest
+          : (earliest.isAfter(latestEarliestFromData!) ? earliest : latestEarliestFromData);
+    }
+    if (latestEarliestFromData != null && latestEarliestFromData.isAfter(adjustedStart)) {
+      stderr.writeln('WARN adjusted_start_fallback used=${latestEarliestFromData.toIso8601String()}');
+      adjustedStart = _firstOfMonth(latestEarliestFromData);
+    }
+  }
+
   final months = <DateTime>[];
-  for (var d = DateTime(startDate.year, startDate.month);
+  for (var d = DateTime(adjustedStart.year, adjustedStart.month);
       d.isBefore(endDate);
       d = DateTime(d.year, d.month + 1)) {
     months.add(d);
   }
-
-  final monthlyReturns = <double>[];
-  final pricesKRW = <double>[];
-  // Prefetch monthly first trading day rows (backfill missing months)
-  await _prefetchMonthlyFirstDay(symbols, startDate, endDate);
-  final stockData = await _loadPriceHistoryFromApi(symbols, startDate, endDate);
-  final usdkrw = await _loadExchangeRatesFromApi(startDate, endDate); // currently unused; placeholder for FX conversion
 
   double portfolioValueKRW = initialCapital;
   double investedKRW = initialCapital;
   final portfolioGrowth = <Map<String, dynamic>>[];
 
   for (var date in months) {
-    double monthReturn = 0.0;
+    // 모든 심볼이 해당 월과 이전 월 데이터를 모두 갖고 있어야 계산 수행
+    final prevDate = DateTime(date.year, date.month - 1, 1);
+    bool hasAll = true;
+    for (int i = 0; i < symbols.length; i++) {
+      final ticker = symbols[i];
+      final prices = stockData[ticker];
+      if (prices == null || prices[date] == null || prices[prevDate] == null) {
+        hasAll = false;
+        break;
+      }
+    }
+    if (!hasAll) {
+      stderr.writeln('INFO skip_month_missing_data date=${_ymd(date)}');
+      continue;
+    }
 
+    double monthReturn = 0.0;
     for (int i = 0; i < symbols.length; i++) {
       final ticker = symbols[i];
       final weight = weights[i];
-      final prices = stockData[ticker];
-      if (prices == null || prices[date] == null) continue;
-
-      final prevDate = DateTime(date.year, date.month - 1, 1);
-      if (prices[prevDate] == null) continue;
-
+      final prices = stockData[ticker]!;
       final change = (prices[date]! / prices[prevDate]!) - 1;
       monthReturn += change * weight;
     }
 
-    // 복리 적용 + DCA
+    // 복리 적용 + DCA (모든 심볼 데이터가 있을 때만)
     portfolioValueKRW = (portfolioValueKRW + dcaAmount) * (1 + monthReturn);
     investedKRW += dcaAmount;
     final totalReturnRate = (portfolioValueKRW / investedKRW) - 1;
@@ -163,6 +221,7 @@ Future<Map<String, dynamic>> runBacktest({
     'volatility': calculateVolatility(monthlyReturns),
     'sharpeRatio': sharpe,
     'maxDrawdown': mdd,
+    'effectiveStartDate': _ymd(adjustedStart),
     'history': portfolioGrowth.map((item) => {
       'date': item['date'],
       'value': item['totalSeedKRW'],
