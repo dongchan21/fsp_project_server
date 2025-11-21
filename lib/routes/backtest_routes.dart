@@ -41,9 +41,13 @@ class BacktestRoutes {
           headers: {'Content-Type': 'application/json'},
         );
       } catch (e, st) {
-        print('❌ Error: $e\n$st');
+        final debug = const bool.fromEnvironment('dart.vm.product') ? false : true;
+        print('❌ Backtest Error: $e\n$st');
         return Response.internalServerError(
-          body: jsonEncode({'error': 'Invalid request or server error'}),
+          body: jsonEncode({
+            'error': 'backtest_failed',
+            if (debug) 'details': e.toString(),
+          }),
           headers: {'Content-Type': 'application/json'},
         );
       }

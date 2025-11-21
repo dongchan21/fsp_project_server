@@ -1,0 +1,18 @@
+name: market_service
+version: 0.0.1
+description: Market data microservice.
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+  shelf_cors_headers: ^0.1.5
+  logging: ^1.2.0
+  postgres: ^2.6.2
+  redis: ^3.1.0
+  fsp_shared:
+    path: ../../packages/fsp_shared
+
+dev_dependencies:
+  test: ^1.25.6
