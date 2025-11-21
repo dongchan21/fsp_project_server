@@ -5,8 +5,8 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:logging/logging.dart';
-import '../lib/data/price_repository.dart';
-import '../lib/data/exchange_rate_repository.dart';
+import 'package:market_service/data/price_repository.dart';
+import 'package:market_service/data/exchange_rate_repository.dart';
 import 'package:fsp_shared/models.dart';
 
 final _log = Logger('market_service');
@@ -103,6 +103,29 @@ void main(List<String> args) async {
       final debug = Platform.environment['DEBUG'] == '1';
       final body = {
         'error': 'price_history_failed',
+        if (debug) 'details': e.toString(),
+      };
+      return Response.internalServerError(body: jsonEncode(body), headers: {'Content-Type': 'application/json'});
+    }
+  });
+
+  // Monthly first trading day history endpoint (auto backfill missing months)
+  router.get('/v1/price/monthly_firstday/<symbol>', (Request req, String symbol) async {
+    try {
+      final startParam = req.url.queryParameters['start'];
+      final endParam = req.url.queryParameters['end'];
+      if (startParam == null || endParam == null) {
+        return Response(400, body: jsonEncode({'error': 'missing_params'}), headers: {'Content-Type': 'application/json'});
+      }
+      final start = DateTime.parse(startParam);
+      final end = DateTime.parse(endParam);
+      final list = await repo.getMonthlyFirstDayHistory(symbol.toUpperCase(), start, end);
+      return Response.ok(jsonEncode(list), headers: {'Content-Type': 'application/json'});
+    } catch (e, st) {
+      _log.severe('Monthly firstday error for $symbol: $e\n$st');
+      final debug = Platform.environment['DEBUG'] == '1';
+      final body = {
+        'error': 'price_monthly_firstday_failed',
         if (debug) 'details': e.toString(),
       };
       return Response.internalServerError(body: jsonEncode(body), headers: {'Content-Type': 'application/json'});

@@ -44,6 +44,24 @@ Future<Map<String, Map<DateTime, double>>> _loadPriceHistoryFromApi(
   return data;
 }
 
+// Prefetch monthly first trading day data to ensure DB is populated before standard history fetch.
+Future<void> _prefetchMonthlyFirstDay(List<String> symbols, DateTime startDate, DateTime endDate) async {
+  final base = _marketBaseUrl();
+  final start = _ymd(_firstOfMonth(startDate));
+  final end = _ymd(_firstOfMonth(endDate));
+  for (final symbol in symbols) {
+    final uri = Uri.parse('$base/v1/price/monthly_firstday/${symbol.toUpperCase()}')
+        .replace(queryParameters: {'start': start, 'end': end});
+    final resp = await http.get(uri);
+    if (resp.statusCode != 200) {
+      // Log but do not fail the entire backtest; fallback to history anyway.
+      stderr.writeln('WARN monthly_firstday_prefetch_failed symbol=$symbol status=${resp.statusCode} body=${resp.body}');
+    } else {
+      stderr.writeln('INFO monthly_firstday_prefetch_ok symbol=$symbol');
+    }
+  }
+}
+
 Future<Map<DateTime, double>> _loadExchangeRatesFromApi(
   DateTime start,
   DateTime end,
@@ -88,6 +106,8 @@ Future<Map<String, dynamic>> runBacktest({
 
   final monthlyReturns = <double>[];
   final pricesKRW = <double>[];
+  // Prefetch monthly first trading day rows (backfill missing months)
+  await _prefetchMonthlyFirstDay(symbols, startDate, endDate);
   final stockData = await _loadPriceHistoryFromApi(symbols, startDate, endDate);
   final usdkrw = await _loadExchangeRatesFromApi(startDate, endDate); // currently unused; placeholder for FX conversion
 
