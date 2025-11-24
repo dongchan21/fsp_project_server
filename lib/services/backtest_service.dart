@@ -222,6 +222,10 @@ Future<Map<String, dynamic>> runBacktest({
     'sharpeRatio': sharpe,
     'maxDrawdown': mdd,
     'effectiveStartDate': _ymd(adjustedStart),
+    'initialCapital': initialCapital,
+    'dcaAmount': dcaAmount,
+    'startDate': _ymd(startDate),
+    'endDate': _ymd(endDate),
     'history': portfolioGrowth.map((item) => {
       'date': item['date'],
       'value': item['totalSeedKRW'],
