@@ -131,7 +131,7 @@ Future<Map<String, dynamic>> runBacktest({
       adjustedStart = latestEarliest;
     }
   }
-  final stockData = await _loadPriceHistoryFromApi(symbols, adjustedStart, endDate);
+  final stockData = await _loadPriceHistoryFromApi({...symbols, 'SPY'}.toList(), adjustedStart, endDate);
   final usdkrw = await _loadExchangeRatesFromApi(adjustedStart, endDate); // currently unused; placeholder for FX conversion
 
   // Fallback: if prefetch did not yield earliest dates (e.g., service down),
@@ -162,6 +162,10 @@ Future<Map<String, dynamic>> runBacktest({
   double portfolioValueKRW = initialCapital;
   double investedKRW = initialCapital;
   final portfolioGrowth = <Map<String, dynamic>>[];
+
+  // Benchmark (SPY) variables
+  double benchmarkValueKRW = initialCapital;
+  final benchmarkGrowth = <Map<String, dynamic>>[];
 
   for (var date in months) {
     // 모든 심볼이 해당 월과 이전 월 데이터를 모두 갖고 있어야 계산 수행
@@ -201,6 +205,23 @@ Future<Map<String, dynamic>> runBacktest({
       'totalReturnRate': totalReturnRate
     });
 
+    // Benchmark (SPY) Calculation
+    final spyPrices = stockData['SPY'];
+    if (spyPrices != null && spyPrices[date] != null && spyPrices[prevDate] != null) {
+      final spyChange = (spyPrices[date]! / spyPrices[prevDate]!) - 1;
+      benchmarkValueKRW = (benchmarkValueKRW + dcaAmount) * (1 + spyChange);
+    } else {
+      // SPY 데이터가 없으면 현금 보유로 가정 (DCA만 추가)
+      benchmarkValueKRW += dcaAmount;
+    }
+    
+    final benchmarkReturnRate = (benchmarkValueKRW / investedKRW) - 1;
+    benchmarkGrowth.add({
+      'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-01',
+      'value': benchmarkValueKRW,
+      'totalReturnRate': benchmarkReturnRate
+    });
+
     // ✅ 리스트 추가 (Sharpe, MDD 계산용)
     monthlyReturns.add(monthReturn);
     pricesKRW.add(portfolioValueKRW);
@@ -213,6 +234,8 @@ Future<Map<String, dynamic>> runBacktest({
 
   final mdd = calculateMDD(pricesKRW);
   final sharpe = calculateSharpe(monthlyReturns);
+
+  final benchmarkTotalReturn = (benchmarkValueKRW / investedKRW) - 1;
 
   // ✅ 클라이언트가 예상하는 형식으로 반환 (DB 기반)
   return {
@@ -230,5 +253,11 @@ Future<Map<String, dynamic>> runBacktest({
       'date': item['date'],
       'value': item['totalSeedKRW'],
     }).toList(),
+    'benchmark': {
+      'symbol': 'SPY',
+      'totalReturn': benchmarkTotalReturn,
+      'finalValue': benchmarkValueKRW,
+      'history': benchmarkGrowth,
+    }
   };
 }
