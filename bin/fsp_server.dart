@@ -3,12 +3,16 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
+import 'package:dotenv/dotenv.dart'; // dotenv 패키지
 
 import 'package:fsp_server/routes/backtest_routes.dart';
 import 'package:fsp_server/routes/insight_routes.dart';
 import 'package:http/http.dart' as http;
 
 void main() async {
+  // .env 파일 로드
+  final env = DotEnv(includePlatformEnvironment: true)..load();
+
   // 라우터 생성 및 백테스트 경로 등록
   final router = Router()..mount('/api/backtest/', BacktestRoutes().router);
   router.mount('/api/insight/', insightRoutes());
@@ -28,7 +32,8 @@ void main() async {
 }
 
 Future<void> _warmUpCache() async {
-  final marketUrl = Platform.environment['MARKET_SERVICE_URL'] ?? 'http://localhost:8081';
+  final env = DotEnv(includePlatformEnvironment: true)..load();
+  final marketUrl = env['MARKET_SERVICE_URL'] ?? 'http://localhost:8081';
   final symbol = 'SPY';
   // 충분히 긴 기간으로 요청하여 캐시에 적재
   final start = '2000-01-01';
