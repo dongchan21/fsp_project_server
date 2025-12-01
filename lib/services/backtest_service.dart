@@ -62,6 +62,10 @@ Future<Map<String, dynamic>> runBacktest({
   double benchmarkValueKRW = initialCapital;
   final benchmarkGrowth = <Map<String, dynamic>>[];
 
+  // Annual Returns Tracking
+  final portfolioAnnualReturns = <int, double>{};
+  final benchmarkAnnualReturns = <int, double>{};
+
   for (var date in months) {
     // 모든 심볼이 해당 월과 이전 월 데이터를 모두 갖고 있어야 계산 수행
     final prevDate = DateTime(date.year, date.month - 1, 1);
@@ -102,8 +106,9 @@ Future<Map<String, dynamic>> runBacktest({
 
     // Benchmark (SPY) Calculation
     final spyPrices = stockData['SPY'];
+    double spyChange = 0.0;
     if (spyPrices != null && spyPrices[date] != null && spyPrices[prevDate] != null) {
-      final spyChange = (spyPrices[date]! / spyPrices[prevDate]!) - 1;
+      spyChange = (spyPrices[date]! / spyPrices[prevDate]!) - 1;
       benchmarkValueKRW = (benchmarkValueKRW + dcaAmount) * (1 + spyChange);
     } else {
       // SPY 데이터가 없으면 현금 보유로 가정 (DCA만 추가)
@@ -120,6 +125,16 @@ Future<Map<String, dynamic>> runBacktest({
     // ✅ 리스트 추가 (Sharpe, MDD 계산용)
     monthlyReturns.add(monthReturn);
     pricesKRW.add(portfolioValueKRW);
+
+    // ✅ 연도별 수익률 누적 (기하평균)
+    final year = date.year;
+    portfolioAnnualReturns[year] = (portfolioAnnualReturns[year] ?? 0.0) == 0.0
+        ? (1 + monthReturn)
+        : portfolioAnnualReturns[year]! * (1 + monthReturn);
+    
+    benchmarkAnnualReturns[year] = (benchmarkAnnualReturns[year] ?? 0.0) == 0.0
+        ? (1 + spyChange)
+        : benchmarkAnnualReturns[year]! * (1 + spyChange);
   }
 
   // ────────────── 요약 통계 ──────────────
@@ -131,6 +146,16 @@ Future<Map<String, dynamic>> runBacktest({
   final sharpe = calculateSharpe(monthlyReturns);
 
   final benchmarkTotalReturn = (benchmarkValueKRW / investedKRW) - 1;
+
+  // 연도별 수익률 리스트 변환
+  final annualReturnsList = portfolioAnnualReturns.keys.map((year) {
+    return {
+      'year': year,
+      'portfolio': (portfolioAnnualReturns[year]! - 1),
+      'benchmark': (benchmarkAnnualReturns[year]! - 1),
+    };
+  }).toList()
+    ..sort((a, b) => (a['year'] as int).compareTo(b['year'] as int));
 
   // ✅ 클라이언트가 예상하는 형식으로 반환 (DB 기반)
   return {
@@ -144,6 +169,7 @@ Future<Map<String, dynamic>> runBacktest({
     'dcaAmount': dcaAmount,
     'startDate': ymd(startDate),
     'endDate': ymd(endDate),
+    'annualReturns': annualReturnsList,
     'history': portfolioGrowth.map((item) => {
       'date': item['date'],
       'value': item['totalSeedKRW'],
