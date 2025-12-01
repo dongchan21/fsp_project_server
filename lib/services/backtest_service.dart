@@ -1,113 +1,8 @@
 import 'dart:math';
-import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'math_utils.dart';
-
-// Data now sourced via Market Service HTTP APIs which apply Redis->DB fallback internally.
-
-String _marketBaseUrl() => Platform.environment['MARKET_SERVICE_URL'] ?? 'http://localhost:8081';
-
-String _ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}'.toString();
-
-DateTime _firstOfMonth(DateTime d) => DateTime(d.year, d.month, 1);
-
-Future<Map<String, Map<DateTime, double>>> _loadPriceHistoryFromApi(
-  List<String> symbols,
-  DateTime startDate,
-  DateTime endDate,
-) async {
-  final data = <String, Map<DateTime, double>>{};
-  final base = _marketBaseUrl();
-  final start = _firstOfMonth(startDate);
-  final end = _firstOfMonth(endDate);
-  for (final symbol in symbols) {
-    final uri = Uri.parse('$base/v1/price/history/${symbol.toUpperCase()}')
-        .replace(queryParameters: {
-      'start': _ymd(start),
-      'end': _ymd(end),
-    });
-    final resp = await http.get(uri);
-    if (resp.statusCode != 200) {
-      throw StateError('price_history_fetch_failed(${symbol}): ${resp.statusCode} ${resp.body}');
-    }
-    final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
-    final m = <DateTime, double>{};
-    for (final item in list) {
-      final dt = DateTime.parse(item['date'] as String);
-      final norm = _firstOfMonth(dt);
-      final close = (item['close'] as num).toDouble();
-      m[norm] = close;
-    }
-    data[symbol] = m;
-  }
-  return data;
-}
-
-// Prefetch monthly first trading day data from listing to current month, and return earliest date per symbol.
-Future<Map<String, DateTime>> _prefetchMonthlyFirstDay(List<String> symbols) async {
-  final base = _marketBaseUrl();
-  // Always backfill from a far past date; yfinance returns from the first listing date.
-  final start = '2000-01-01';
-  final now = DateTime.now();
-  final end = _ymd(_firstOfMonth(DateTime(now.year, now.month)));
-  final result = <String, DateTime>{};
-  for (final symbol in symbols) {
-    final uri = Uri.parse('$base/v1/price/monthly_firstday/${symbol.toUpperCase()}')
-        .replace(queryParameters: {'start': start, 'end': end});
-    http.Response resp;
-    try {
-      resp = await http.get(uri);
-    } catch (e) {
-      stderr.writeln('WARN monthly_firstday_prefetch_conn_failed symbol=$symbol error=$e');
-      continue;
-    }
-    if (resp.statusCode != 200) {
-      // Log but do not fail the entire backtest; fallback to history anyway.
-      stderr.writeln('WARN monthly_firstday_prefetch_failed symbol=$symbol status=${resp.statusCode} body=${resp.body}');
-      continue;
-    }
-    stderr.writeln('INFO monthly_firstday_prefetch_ok symbol=$symbol');
-    try {
-      final points = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
-      if (points.isNotEmpty) {
-        final first = points.first;
-        final dt = DateTime.parse(first['date'] as String);
-        result[symbol.toUpperCase()] = _firstOfMonth(dt);
-      }
-    } catch (_) {
-      // ignore parse errors, rely on history fetch later
-    }
-  }
-  return result;
-}
-
-Future<Map<DateTime, double>> _loadExchangeRatesFromApi(
-  DateTime start,
-  DateTime end,
-  {String pair = 'USDKRW'}
-) async {
-  final base = _marketBaseUrl();
-  final s = _ymd(_firstOfMonth(start));
-  final e = _ymd(_firstOfMonth(end));
-  final uri = Uri.parse('$base/v1/forex/history')
-      .replace(queryParameters: {'pair': pair.toUpperCase(), 'start': s, 'end': e});
-  final resp = await http.get(uri);
-  if (resp.statusCode != 200) {
-    throw StateError('forex_history_fetch_failed: ${resp.statusCode} ${resp.body}');
-  }
-  final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
-  final m = <DateTime, double>{};
-  for (final item in list) {
-    final dt = DateTime.parse(item['date'] as String);
-    final norm = _firstOfMonth(dt);
-    final rate = (item['rate'] as num).toDouble();
-    m[norm] = rate;
-  }
-  return m;
-}
-
-// Legacy direct-DB loader functions removed after integration with market_service APIs.
+import 'market_data_service.dart';
+import '../utils/date_utils.dart';
 
 Future<Map<String, dynamic>> runBacktest({
   required List<String> symbols,
@@ -120,8 +15,8 @@ Future<Map<String, dynamic>> runBacktest({
   final monthlyReturns = <double>[];
   final pricesKRW = <double>[];
   // Prefetch monthly first trading day rows from listing to current month, and compute adjusted start
-  final earliestMap = await _prefetchMonthlyFirstDay(symbols);
-  DateTime adjustedStart = _firstOfMonth(startDate);
+  final earliestMap = await MarketDataService.prefetchMonthlyFirstDay(symbols);
+  DateTime adjustedStart = firstOfMonth(startDate);
   if (earliestMap.isNotEmpty) {
     DateTime latestEarliest = earliestMap.values.first;
     for (final dt in earliestMap.values) {
@@ -131,8 +26,8 @@ Future<Map<String, dynamic>> runBacktest({
       adjustedStart = latestEarliest;
     }
   }
-  final stockData = await _loadPriceHistoryFromApi({...symbols, 'SPY'}.toList(), adjustedStart, endDate);
-  final usdkrw = await _loadExchangeRatesFromApi(adjustedStart, endDate); // currently unused; placeholder for FX conversion
+  final stockData = await MarketDataService.loadPriceHistoryFromApi({...symbols, 'SPY'}.toList(), adjustedStart, endDate);
+  // final usdkrw = await MarketDataService.loadExchangeRatesFromApi(adjustedStart, endDate); // currently unused; placeholder for FX conversion
 
   // Fallback: if prefetch did not yield earliest dates (e.g., service down),
   // adjust start based on actual earliest data in loaded history.
@@ -148,7 +43,7 @@ Future<Map<String, dynamic>> runBacktest({
     }
     if (latestEarliestFromData != null && latestEarliestFromData.isAfter(adjustedStart)) {
       stderr.writeln('WARN adjusted_start_fallback used=${latestEarliestFromData.toIso8601String()}');
-      adjustedStart = _firstOfMonth(latestEarliestFromData);
+      adjustedStart = firstOfMonth(latestEarliestFromData);
     }
   }
 
@@ -180,7 +75,7 @@ Future<Map<String, dynamic>> runBacktest({
       }
     }
     if (!hasAll) {
-      stderr.writeln('INFO skip_month_missing_data date=${_ymd(date)}');
+      stderr.writeln('INFO skip_month_missing_data date=${ymd(date)}');
       continue;
     }
 
@@ -244,11 +139,11 @@ Future<Map<String, dynamic>> runBacktest({
     'volatility': calculateVolatility(monthlyReturns),
     'sharpeRatio': sharpe,
     'maxDrawdown': mdd,
-    'effectiveStartDate': _ymd(adjustedStart),
+    'effectiveStartDate': ymd(adjustedStart),
     'initialCapital': initialCapital,
     'dcaAmount': dcaAmount,
-    'startDate': _ymd(startDate),
-    'endDate': _ymd(endDate),
+    'startDate': ymd(startDate),
+    'endDate': ymd(endDate),
     'history': portfolioGrowth.map((item) => {
       'date': item['date'],
       'value': item['totalSeedKRW'],
