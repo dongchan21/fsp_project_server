@@ -66,9 +66,17 @@ ${analysis['riskEfficiency']}
 """;
 
   // ---------- Gemini API 호출 ----------
-  // 환경 변수에서 API 키를 가져오거나, 없으면 기존 하드코딩된 키를 사용 (보안상 환경변수 권장)
+  // 환경 변수에서 API 키를 가져오거나, 없으면 에러 반환
   final env = DotEnv(includePlatformEnvironment: true)..load();
-  final apiKey = env['GEMINI_API_KEY'] ?? 'AIzaSyCaS0EJ_mKJzqrilCMj10wEzc_f6FG3j7Q'; 
+  final apiKey = env['GEMINI_API_KEY'];
+
+  if (apiKey == null || apiKey.isEmpty) {
+    return {
+      "error": "서버 설정 오류: GEMINI_API_KEY가 설정되지 않았습니다.",
+      "status": 500,
+    };
+  }
+
   final url = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey');
 
