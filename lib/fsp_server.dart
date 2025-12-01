@@ -6,11 +6,17 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
 import 'routes/backtest_routes.dart';
 import 'routes/insight_routes.dart';
+import 'routes/auth_routes.dart';
+import 'routes/board_routes.dart';
+import 'routes/stock_routes.dart';
 
 void main() async {
   // 라우터 생성 및 백테스트 경로 등록
   final router = Router()..mount('/api/backtest/', BacktestRoutes().router);
   router.mount('/api/insight/', insightRoutes());
+  router.mount('/api/auth/', AuthRoutes().router);
+  router.mount('/api/board/', BoardRoutes().router);
+  router.mount('/api/stocks/', StockRoutes().router);
 
   // 미들웨어 설정
   final handler = const Pipeline()

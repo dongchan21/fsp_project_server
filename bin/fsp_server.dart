@@ -8,16 +8,29 @@ import 'package:dotenv/dotenv.dart'; // dotenv 패키지
 import 'package:fsp_server/routes/backtest_routes.dart';
 import 'package:fsp_server/routes/insight_routes.dart';
 import 'package:fsp_server/routes/stock_routes.dart';
+import 'package:fsp_server/routes/auth_routes.dart';
+import 'package:fsp_server/routes/board_routes.dart';
+import 'package:fsp_server/utils/db_utils.dart';
 import 'package:http/http.dart' as http;
 
 void main() async {
   // .env 파일 로드
   final env = DotEnv(includePlatformEnvironment: true)..load();
 
+  // DB 초기화
+  try {
+    await DbUtils.initTables();
+    print('✅ Database initialized');
+  } catch (e) {
+    print('❌ Database initialization failed: $e');
+  }
+
   // 라우터 생성 및 백테스트 경로 등록
   final router = Router()..mount('/api/backtest/', BacktestRoutes().router);
   router.mount('/api/insight/', insightRoutes());
   router.mount('/api/stocks/', StockRoutes().router);
+  router.mount('/api/auth/', AuthRoutes().router);
+  router.mount('/api/board/', BoardRoutes().router);
 
   // 미들웨어 설정
   final handler = const Pipeline()

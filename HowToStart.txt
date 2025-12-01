@@ -1,10 +1,16 @@
 #price fetcher(FastAPI)
-cd services/price_fetcher
+cd fsp_server/services/price_fetcher
 uvicorn app.main:app --port 8090 --reload
 
 #redis
-docker desktop 실행 후 resdis run
+docker desktop 실행 후 redis run
+cd fsp_server
 dart run services/market_service/bin/server.dart
 
 #dart server
+cd fsp_server
 dart run bin/fsp_server.dart
+
+#회원가입용 postgres 서버 띄우기
+cd fsp_server
+docker-compose up -d postgres
