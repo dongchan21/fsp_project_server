@@ -52,5 +52,21 @@ class DbUtils {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     ''');
+
+    // Backtest History table
+    await conn.query('''
+      CREATE TABLE IF NOT EXISTS backtest_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        symbols JSONB NOT NULL,
+        weights JSONB NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        initial_capital DOUBLE PRECISION NOT NULL,
+        dca_amount DOUBLE PRECISION NOT NULL,
+        result_summary JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
   }
 }

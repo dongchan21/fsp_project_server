@@ -71,6 +71,43 @@ class BoardRoutes {
       }
     });
 
+    // 게시글 삭제 (인증 및 본인 확인 필요)
+    router.delete('/<id>', (Request request, String id) async {
+      // 1. 토큰 검증
+      final authHeader = request.headers['Authorization'];
+      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+        return Response.forbidden(jsonEncode({'error': 'Missing or invalid token'}));
+      }
+
+      final token = authHeader.substring(7);
+      int userId;
+      try {
+        final jwt = JWT.verify(token, SecretKey(_secretKey));
+        userId = jwt.payload['id'];
+      } catch (e) {
+        return Response.forbidden(jsonEncode({'error': 'Invalid token'}));
+      }
+
+      // 2. 게시글 존재 및 작성자 확인
+      try {
+        final postId = int.tryParse(id);
+        if (postId == null) return Response.badRequest(body: 'Invalid ID');
+
+        final post = await BoardService.getPost(postId);
+        if (post == null) return Response.notFound('Post not found');
+
+        if (post['user_id'] != userId) {
+          return Response.forbidden(jsonEncode({'error': 'Permission denied'}));
+        }
+
+        // 3. 삭제 실행
+        await BoardService.deletePost(postId);
+        return Response.ok(jsonEncode({'message': 'Post deleted successfully'}), headers: {'Content-Type': 'application/json'});
+      } catch (e) {
+        return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+      }
+    });
+
     return router;
   }
 }

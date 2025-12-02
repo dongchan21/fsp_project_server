@@ -59,7 +59,7 @@ class BoardService {
 
     final results = await conn.query(
       '''
-      SELECT p.id, p.title, p.content, p.portfolio_data, p.created_at, u.nickname 
+      SELECT p.id, p.title, p.content, p.portfolio_data, p.created_at, u.nickname, p.user_id 
       FROM posts p
       JOIN users u ON p.user_id = u.id
       WHERE p.id = @id
@@ -85,6 +85,13 @@ class BoardService {
       'portfolio_data': portfolioData,
       'created_at': row[4].toString(),
       'author_name': row[5],
+      'user_id': row[6],
     };
+  }
+
+  // 게시글 삭제
+  static Future<void> deletePost(int id) async {
+    final conn = await DbUtils.getConnection();
+    await conn.query('DELETE FROM posts WHERE id = @id', substitutionValues: {'id': id});
   }
 }

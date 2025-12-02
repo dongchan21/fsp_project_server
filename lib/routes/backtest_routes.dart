@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import '../services/backtest_service.dart';
 
 class BacktestRoutes {
+  static const String _secretKey = 'my_secret_key'; // Should be in env
+
   Router get router {
     final router = Router();
 
@@ -36,6 +39,40 @@ class BacktestRoutes {
           dcaAmount: dcaAmount,
         );
 
+        // 로그인한 사용자라면 히스토리 저장
+        final authHeader = request.headers['Authorization'];
+        if (authHeader != null && authHeader.startsWith('Bearer ')) {
+          try {
+            final token = authHeader.substring(7);
+            final jwt = JWT.verify(token, SecretKey(_secretKey));
+            final userId = jwt.payload['id'];
+
+            // 요약 정보만 추출하여 저장
+            final summary = {
+              'totalReturn': result['totalReturn'],
+              'annualizedReturn': result['annualizedReturn'],
+              'volatility': result['volatility'],
+              'sharpeRatio': result['sharpeRatio'],
+              'maxDrawdown': result['maxDrawdown'],
+            };
+
+            await BacktestService.saveHistory(
+              userId: userId,
+              symbols: symbols,
+              weights: weights,
+              startDate: startDate,
+              endDate: endDate,
+              initialCapital: initialCapital,
+              dcaAmount: dcaAmount,
+              resultSummary: summary,
+            );
+            print('✅ Backtest history saved for user $userId');
+          } catch (e) {
+            print('⚠️ Failed to save history: $e');
+            // 히스토리 저장 실패가 백테스트 결과 반환을 막으면 안 됨
+          }
+        }
+
         return Response.ok(
           jsonEncode(result),
           headers: {'Content-Type': 'application/json'},
@@ -50,6 +87,28 @@ class BacktestRoutes {
           }),
           headers: {'Content-Type': 'application/json'},
         );
+      }
+    });
+
+    // GET /api/backtest/history
+    router.get('/history', (Request request) async {
+      final authHeader = request.headers['Authorization'];
+      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+        return Response.forbidden(jsonEncode({'error': 'Missing or invalid token'}));
+      }
+
+      try {
+        final token = authHeader.substring(7);
+        final jwt = JWT.verify(token, SecretKey(_secretKey));
+        final userId = jwt.payload['id'];
+
+        final history = await BacktestService.getHistory(userId);
+        return Response.ok(
+          jsonEncode(history),
+          headers: {'Content-Type': 'application/json'},
+        );
+      } catch (e) {
+        return Response.forbidden(jsonEncode({'error': 'Invalid token or server error: $e'}));
       }
     });
 
