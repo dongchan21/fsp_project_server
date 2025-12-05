@@ -27,8 +27,8 @@ class DbUtils {
     return _connection!;
   }
 
-  static Future<void> initTables() async {
-    final conn = await getConnection();
+  static Future<void> initTables({PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await getConnection();
 
     // Users table
     await conn.query('''

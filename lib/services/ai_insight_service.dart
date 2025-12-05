@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:dotenv/dotenv.dart';
 
 /// Gemini 기반 AI 인사이트 생성 서비스
-Future<Map<String, dynamic>> generateAiInsight(Map<String, dynamic> body) async {
+Future<Map<String, dynamic>> generateAiInsight(Map<String, dynamic> body, {http.Client? client, String? apiKey}) async {
   final score = body['score'] ?? {};
   final analysis = body['analysis'] ?? {};
   final portfolio = body['portfolio'] ?? {};
@@ -67,10 +67,17 @@ ${analysis['riskEfficiency']}
 
   // ---------- Gemini API 호출 ----------
   // 환경 변수에서 API 키를 가져오거나, 없으면 에러 반환
-  final env = DotEnv(includePlatformEnvironment: true)..load();
-  final apiKey = env['GEMINI_API_KEY'];
+  String? finalApiKey = apiKey;
+  if (finalApiKey == null) {
+    try {
+      final env = DotEnv(includePlatformEnvironment: true)..load();
+      finalApiKey = env['GEMINI_API_KEY'];
+    } catch (e) {
+      // .env 파일이 없거나 로드 실패 시 무시
+    }
+  }
 
-  if (apiKey == null || apiKey.isEmpty) {
+  if (finalApiKey == null || finalApiKey.isEmpty) {
     return {
       "error": "서버 설정 오류: GEMINI_API_KEY가 설정되지 않았습니다.",
       "status": 500,
@@ -78,21 +85,29 @@ ${analysis['riskEfficiency']}
   }
 
   final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey');
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$finalApiKey');
 
-  final response = await http.post(
-    url,
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      "contents": [
-        {
-          "parts": [
-            {"text": prompt}
-          ]
-        }
-      ]
-    }),
-  );
+  final clientToUse = client ?? http.Client();
+  http.Response response;
+  try {
+    response = await clientToUse.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "contents": [
+          {
+            "parts": [
+              {"text": prompt}
+            ]
+          }
+        ]
+      }),
+    );
+  } finally {
+    if (client == null) {
+      clientToUse.close();
+    }
+  }
 
   if (response.statusCode != 200) {
     return {

@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'package:postgres/postgres.dart';
 import '../utils/db_utils.dart';
 
 class BoardService {
   // 게시글 작성
-  static Future<Map<String, dynamic>> createPost(int userId, String title, String content, Map<String, dynamic> portfolioData) async {
-    final conn = await DbUtils.getConnection();
+  static Future<Map<String, dynamic>> createPost(int userId, String title, String content, Map<String, dynamic> portfolioData, {PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
 
     await conn.query(
       'INSERT INTO posts (user_id, title, content, portfolio_data) VALUES (@userId, @title, @content, @portfolioData)',
@@ -20,8 +21,8 @@ class BoardService {
   }
 
   // 게시글 목록 조회
-  static Future<List<Map<String, dynamic>>> getPosts() async {
-    final conn = await DbUtils.getConnection();
+  static Future<List<Map<String, dynamic>>> getPosts({PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
 
     final results = await conn.query(
       '''
@@ -54,8 +55,8 @@ class BoardService {
   }
   
   // 게시글 상세 조회
-  static Future<Map<String, dynamic>?> getPost(int id) async {
-    final conn = await DbUtils.getConnection();
+  static Future<Map<String, dynamic>?> getPost(int id, {PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
 
     final results = await conn.query(
       '''
@@ -90,8 +91,8 @@ class BoardService {
   }
 
   // 게시글 삭제
-  static Future<void> deletePost(int id) async {
-    final conn = await DbUtils.getConnection();
+  static Future<void> deletePost(int id, {PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
     await conn.query('DELETE FROM posts WHERE id = @id', substitutionValues: {'id': id});
   }
 }

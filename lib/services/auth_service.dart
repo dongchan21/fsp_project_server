@@ -3,12 +3,14 @@ import 'package:crypto/crypto.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import '../utils/db_utils.dart';
 
+import 'package:postgres/postgres.dart';
+
 class AuthService {
   static const String _secretKey = 'my_secret_key'; // 실제 운영 시에는 환경변수로 관리해야 함
 
   // 회원가입
-  static Future<Map<String, dynamic>> signup(String email, String password, String nickname) async {
-    final conn = await DbUtils.getConnection();
+  static Future<Map<String, dynamic>> signup(String email, String password, String nickname, {PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
 
     // 이메일 중복 체크
     final check = await conn.query('SELECT id FROM users WHERE email = @email', substitutionValues: {'email': email});
@@ -35,8 +37,8 @@ class AuthService {
   }
 
   // 로그인
-  static Future<Map<String, dynamic>> login(String email, String password) async {
-    final conn = await DbUtils.getConnection();
+  static Future<Map<String, dynamic>> login(String email, String password, {PostgreSQLConnection? connection}) async {
+    final conn = connection ?? await DbUtils.getConnection();
 
     // 사용자 조회
     final result = await conn.query(

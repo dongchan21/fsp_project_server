@@ -82,8 +82,6 @@ Future<Map<String, dynamic>> runBacktest({
   required double initialCapital,
   required double dcaAmount,
 }) async {
-  final monthlyReturns = <double>[];
-  final pricesKRW = <double>[];
   // Prefetch monthly first trading day rows from listing to current month, and compute adjusted start
   final earliestMap = await MarketDataService.prefetchMonthlyFirstDay(symbols);
   DateTime adjustedStart = firstOfMonth(startDate);
@@ -117,8 +115,29 @@ Future<Map<String, dynamic>> runBacktest({
     }
   }
 
+  return calculateBacktestLogic(
+    symbols: symbols,
+    weights: weights,
+    startDate: adjustedStart,
+    endDate: endDate,
+    initialCapital: initialCapital,
+    dcaAmount: dcaAmount,
+    stockData: stockData,
+  );
+}
+
+// ✅ 순수 함수로 분리하여 테스트 가능하게 만듦
+Map<String, dynamic> calculateBacktestLogic({
+  required List<String> symbols,
+  required List<double> weights,
+  required DateTime startDate,
+  required DateTime endDate,
+  required double initialCapital,
+  required double dcaAmount,
+  required Map<String, Map<DateTime, double>> stockData,
+}) {
   final months = <DateTime>[];
-  for (var d = DateTime(adjustedStart.year, adjustedStart.month);
+  for (var d = DateTime(startDate.year, startDate.month);
       d.isBefore(endDate);
       d = DateTime(d.year, d.month + 1)) {
     months.add(d);
@@ -135,6 +154,8 @@ Future<Map<String, dynamic>> runBacktest({
   // Annual Returns Tracking
   final portfolioAnnualReturns = <int, double>{};
   final benchmarkAnnualReturns = <int, double>{};
+  final monthlyReturns = <double>[];
+  final pricesKRW = <double>[];
 
   for (var date in months) {
     // 모든 심볼이 해당 월과 이전 월 데이터를 모두 갖고 있어야 계산 수행
@@ -149,7 +170,7 @@ Future<Map<String, dynamic>> runBacktest({
       }
     }
     if (!hasAll) {
-      stderr.writeln('INFO skip_month_missing_data date=${ymd(date)}');
+      // stderr.writeln('INFO skip_month_missing_data date=${ymd(date)}');
       continue;
     }
 
@@ -208,14 +229,14 @@ Future<Map<String, dynamic>> runBacktest({
   }
 
   // ────────────── 요약 통계 ──────────────
-  final totalReturn = (portfolioValueKRW / investedKRW) - 1;
+  final totalReturn = investedKRW > 0 ? (portfolioValueKRW / investedKRW) - 1 : 0.0;
   final years = max(months.length / 12, 1);
   final annualReturn = pow(1 + totalReturn, 1 / years) - 1;
 
   final mdd = calculateMDD(pricesKRW);
   final sharpe = calculateSharpe(monthlyReturns);
 
-  final benchmarkTotalReturn = (benchmarkValueKRW / investedKRW) - 1;
+  final benchmarkTotalReturn = investedKRW > 0 ? (benchmarkValueKRW / investedKRW) - 1 : 0.0;
 
   // 연도별 수익률 리스트 변환
   final annualReturnsList = portfolioAnnualReturns.keys.map((year) {
@@ -234,7 +255,7 @@ Future<Map<String, dynamic>> runBacktest({
     'volatility': calculateVolatility(monthlyReturns),
     'sharpeRatio': sharpe,
     'maxDrawdown': mdd,
-    'effectiveStartDate': ymd(adjustedStart),
+    'effectiveStartDate': ymd(startDate),
     'initialCapital': initialCapital,
     'dcaAmount': dcaAmount,
     'startDate': ymd(startDate),
