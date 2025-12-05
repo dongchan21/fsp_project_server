@@ -11,48 +11,39 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fsp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: fsp-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
-  backtest:
+  price-fetcher:
     build:
-      context: ./services/backtest_service
+      context: ./services/price_fetcher
+    container_name: fsp-price-fetcher
     environment:
-      PORT: 8082
+      PORT: 8090
       POSTGRES_HOST: postgres
       POSTGRES_USER: fsp
       POSTGRES_PASSWORD: fsp
       POSTGRES_DB: fsp
-      REDIS_HOST: redis
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
     ports:
-      - "8082:8082"
-
-  ai:
-    build:
-      context: ./services/ai_service
-    environment:
-      PORT: 8083
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: fsp
-      POSTGRES_PASSWORD: fsp
-      POSTGRES_DB: fsp
-      REDIS_HOST: redis
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - "8083:8083"
+      - "8090:8090"
 
   market:
     build:
-      context: ./services/market_service
+      context: .
+      dockerfile: ./services/market_service/Dockerfile
+    container_name: fsp-market
     environment:
       PORT: 8081
       POSTGRES_HOST: postgres
@@ -60,11 +51,81 @@ services:
       POSTGRES_PASSWORD: fsp
       POSTGRES_DB: fsp
       REDIS_HOST: redis
+      PRICE_FETCHER_URL: http://price-fetcher:8090
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      price-fetcher:
+        condition: service_started
     ports:
       - "8081:8081"
+
+  backtest:
+    build:
+      context: .
+      dockerfile: ./services/backtest_service/Dockerfile
+    container_name: fsp-backtest
+    environment:
+      PORT: 8082
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: fsp
+      POSTGRES_PASSWORD: fsp
+      POSTGRES_DB: fsp
+      REDIS_HOST: redis
+      MARKET_SERVICE_URL: http://market:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8082:8082"
+
+  ai:
+    build:
+      context: .
+      dockerfile: ./services/ai_service/Dockerfile
+    container_name: fsp-ai
+    environment:
+      PORT: 8083
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: fsp
+      POSTGRES_PASSWORD: fsp
+      POSTGRES_DB: fsp
+      REDIS_HOST: redis
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8083:8083"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fsp-gateway
+    environment:
+      PORT: 8080
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: fsp
+      POSTGRES_PASSWORD: fsp
+      POSTGRES_DB: fsp
+      MARKET_SERVICE_URL: http://market:8081
+      BACKTEST_SERVICE_URL: http://backtest:8082
+      AI_SERVICE_URL: http://ai:8083
+      # GEMINI_API_KEY needed if gateway calls Gemini directly (currently it does in ai_insight_service.dart)
+    depends_on:
+      - market
+      - backtest
+      - ai
+      - postgres
+    ports:
+      - "8080:8080"
 
 volumes:
   pgdata:

@@ -6,6 +6,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:logging/logging.dart';
 import 'package:fsp_shared/models.dart';
+import 'package:backtest_service/backtest_engine.dart';
 
 final _log = Logger('backtest_service');
 
@@ -20,28 +21,36 @@ void main(List<String> args) async {
   router.get('/healthz', (Request req) => Response.ok('ok'));
   router.get('/readyz', (Request req) => Response.ok('ready'));
 
-  // Create backtest job
+  // Run backtest synchronously
   router.post('/v1/backtests', (Request req) async {
     try {
       final body = await req.readAsString();
       final data = jsonDecode(body) as Map<String, dynamic>;
-      final btReq = BacktestRequest.fromJson(data);
-      // TODO: enqueue job in Redis / persist to Postgres
-      final jobId = DateTime.now().millisecondsSinceEpoch.toString();
-      _log.info('Queued backtest job $jobId for ${btReq.symbols}');
-      final status = BacktestJobStatus(jobId: jobId, status: 'queued');
-      return Response(202, body: jsonEncode(status.toJson()), headers: {'Content-Type': 'application/json'});
-    } catch (e, st) {
-      _log.severe('Failed to queue backtest: $e\n$st');
-      return Response.internalServerError(body: jsonEncode({'error': 'invalid_request'}), headers: {'Content-Type': 'application/json'});
-    }
-  });
+      
+      // Extract parameters manually to ensure types
+      final symbols = List<String>.from(data['symbols']);
+      final weights = (data['weights'] as List).map((w) => (w as num).toDouble()).toList();
+      final startDate = DateTime.parse(data['startDate']);
+      final endDate = DateTime.parse(data['endDate']);
+      final initialCapital = (data['initialCapital'] as num).toDouble();
+      final dcaAmount = (data['dcaAmount'] as num).toDouble();
 
-  // Get backtest status placeholder
-  router.get('/v1/backtests/<jobId>', (Request req, String jobId) async {
-    // TODO: lookup job status from Redis/Postgres
-    final status = BacktestJobStatus(jobId: jobId, status: 'queued');
-    return Response.ok(jsonEncode(status.toJson()), headers: {'Content-Type': 'application/json'});
+      _log.info('Running backtest for $symbols from $startDate to $endDate');
+
+      final result = await runBacktest(
+        symbols: symbols,
+        weights: weights,
+        startDate: startDate,
+        endDate: endDate,
+        initialCapital: initialCapital,
+        dcaAmount: dcaAmount,
+      );
+
+      return Response.ok(jsonEncode(result), headers: {'Content-Type': 'application/json'});
+    } catch (e, st) {
+      _log.severe('Failed to run backtest: $e\n$st');
+      return Response.internalServerError(body: jsonEncode({'error': 'backtest_failed', 'details': e.toString()}), headers: {'Content-Type': 'application/json'});
+    }
   });
 
   final handler = const Pipeline()

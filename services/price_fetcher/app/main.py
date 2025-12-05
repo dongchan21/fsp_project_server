@@ -34,6 +34,15 @@ class FirstDayHistoryResponse(BaseModel):
     symbol: str
     points: List[PricePoint]
 
+SQL_CREATE_TABLE = """
+CREATE TABLE IF NOT EXISTS price (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(10) NOT NULL,
+    date DATE NOT NULL,
+    close NUMERIC(10, 2) NOT NULL
+);
+"""
+
 SQL_UPSERT = """
 INSERT INTO price(symbol, date, close)
 VALUES (%s, %s, %s)
@@ -85,8 +94,12 @@ async def startup():
         async with await get_conn() as conn:
             print("🟢 [DB] PostgreSQL connection successful!")
             
-            # 2) Unique index 생성 확인
             async with conn.cursor() as cur:
+                # 1) Ensure table exists
+                print("🔵 [DB] Ensuring table 'price' exists...")
+                await cur.execute(SQL_CREATE_TABLE)
+                
+                # 2) Unique index 생성 확인
                 print("🔵 [DB] Ensuring unique index on price(symbol, date)...")
                 await cur.execute(SQL_ENSURE_UNIQUE)
                 print("🟢 [DB] Unique index OK!")
