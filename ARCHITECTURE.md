@@ -76,6 +76,8 @@ graph TD
     class Yahoo,Gemini external;
 ```
 
+<br>
+
 ---
 
 ## 2. Service Communication (서비스 간 통신)
