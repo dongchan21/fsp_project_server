@@ -74,7 +74,9 @@ graph TD
     class Market,Backtest,AI,Fetcher service;
     class Redis,Postgres db;
     class Yahoo,Gemini external;
-```---
+```
+
+---
 
 ## 2. Service Communication (서비스 간 통신)
 
