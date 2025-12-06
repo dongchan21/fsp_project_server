@@ -73,10 +73,10 @@ graph TD
     class Nginx,Gateway gateway;
     class Market,Backtest,AI,Fetcher service;
     class Redis,Postgres db;
-    class Yahoo,Gemini external;
+    class Yahoo,Gemini external
 ```
 
-**Figure 1: FSP System Architecture Diagram**
+<!-- Diagram End -->
 
 ---
 
