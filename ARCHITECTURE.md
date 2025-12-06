@@ -76,7 +76,7 @@ graph TD
     class Yahoo,Gemini external;
 ```
 
-<br>
+**Figure 1: FSP System Architecture Diagram**
 
 ---
 
