@@ -4,35 +4,35 @@
 
 FSP 백엔드는 느슨하게 결합된(Loosely Coupled) 마이크로서비스 시스템으로 설계되었으며, Docker Compose를 통해 오케스트레이션됩니다. 이를 통해 각 컴포넌트의 독립적인 확장과 유지보수가 가능합니다.
 
-```mermaid
+````mermaid
 graph TD
     %% Client Layer
-    Client([Flutter Web Client])
+    Client(["Flutter Web Client"])
 
     %% External APIs Layer
-    subgraph External [External Services]
-        Yahoo[Yahoo Finance API]
-        Gemini[Google Gemini API]
+    subgraph External ["External Services"]
+        Yahoo["Yahoo Finance API"]
+        Gemini["Google Gemini API"]
     end
 
     %% Docker Infrastructure Layer
-    subgraph Docker [Docker Container Network]
+    subgraph Docker ["Docker Container Network"]
         %% Entry Points
-        Nginx[Nginx Reverse Proxy :80]
-        Gateway[API Gateway (Dart) :8080]
+        Nginx["Nginx Reverse Proxy :80"]
+        Gateway["API Gateway (Dart) :8080"]
 
         %% Core Microservices
-        subgraph Services [Microservices]
-            Market[Market Service :8081]
-            Backtest[Backtest Service :8082]
-            AI[AI Service :8083]
-            Fetcher[Price Fetcher (Python) :8090]
+        subgraph Services ["Microservices"]
+            Market["Market Service :8081"]
+            Backtest["Backtest Service :8082"]
+            AI["AI Service :8083"]
+            Fetcher["Price Fetcher (Python) :8090"]
         end
 
         %% Data Persistence Layer
-        subgraph Data [Data Stores]
-            Redis[(Redis Cache)]
-            Postgres[(PostgreSQL DB)]
+        subgraph Data ["Data Stores"]
+            Redis[("Redis Cache")]
+            Postgres[("PostgreSQL DB")]
         end
     end
 
@@ -74,9 +74,7 @@ graph TD
     class Market,Backtest,AI,Fetcher service;
     class Redis,Postgres db;
     class Yahoo,Gemini external;
-```
-
----
+```---
 
 ## 2. Service Communication (서비스 간 통신)
 
@@ -113,3 +111,4 @@ graph TD
 1.  **비동기 트리거 (Async Trigger)**: 백테스트가 완료되는 즉시, 클라이언트는 AI 분석 요청을 **미리 시작(Prefetching)**합니다.
 2.  **처리 (Processing)**: AI 서비스가 성과 지표를 포함한 프롬프트를 구성하여 LLM에 전송합니다.
 3.  **결과 (Result)**: 텍스트 인사이트가 반환되며, 사용자가 "AI 분석" 탭을 볼 때 즉시 제공될 수 있도록 준비됩니다.
+````
