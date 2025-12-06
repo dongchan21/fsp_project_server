@@ -54,7 +54,13 @@ void _startServer(int id) async {
   // 미들웨어 설정
   final handler = const Pipeline()
       .addMiddleware(logRequests()) // 요청 로그 출력
-      .addMiddleware(corsHeaders()) // CORS 허용
+      .addMiddleware(corsHeaders(
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Origin, Content-Type, Authorization, ngrok-skip-browser-warning',
+        },
+      )) // CORS 허용
       .addHandler(router);
 
   // 서버 실행 (shared: true 옵션으로 포트 공유)
