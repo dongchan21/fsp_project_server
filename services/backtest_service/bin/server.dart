@@ -17,17 +17,17 @@ void main(List<String> args) async {
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8082;
   final router = Router();
 
-  // Health endpoints
+  // 헬스 체크 엔드포인트
   router.get('/healthz', (Request req) => Response.ok('ok'));
   router.get('/readyz', (Request req) => Response.ok('ready'));
 
-  // Run backtest synchronously
+  // 동기적으로 백테스트 실행
   router.post('/v1/backtests', (Request req) async {
     try {
       final body = await req.readAsString();
       final data = jsonDecode(body) as Map<String, dynamic>;
       
-      // Extract parameters manually to ensure types
+      // 타입을 보장하기 위해 파라미터를 수동으로 추출
       final symbols = List<String>.from(data['symbols']);
       final weights = (data['weights'] as List).map((w) => (w as num).toDouble()).toList();
       final startDate = DateTime.parse(data['startDate']);

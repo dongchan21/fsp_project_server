@@ -16,7 +16,7 @@ void main(List<String> args) async {
   Logger.root.onRecord.listen((r) => stdout.writeln('[${r.level.name}] ${r.time.toIso8601String()} ${r.loggerName} - ${r.message}'));
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8081;
-  // Initialize connections first so routes can use them
+  // 라우트에서 사용할 수 있도록 연결을 먼저 초기화합니다.
   _log.info('Connecting to Postgres/Redis ...');
   final pg = await PriceRepository.connectPostgres();
   final redis = await PriceRepository.connectRedis();
@@ -29,7 +29,7 @@ void main(List<String> args) async {
   router.get('/readyz', (Request req) => Response.ok('ready'));
 
   
-  // Forex endpoint (latest exchange_rate row) via repository with Redis caching
+  // Redis 캐싱을 사용하는 리포지토리를 통한 외환 엔드포인트 (최신 환율 행)
   router.get('/v1/forex', (Request req) async {
     try {
       final pair = (req.url.queryParameters['pair'] ?? 'USDKRW').toUpperCase();
@@ -46,7 +46,7 @@ void main(List<String> args) async {
     }
   });
 
-  // Forex history endpoint
+  // 외환 히스토리 엔드포인트
   router.get('/v1/forex/history', (Request req) async {
     try {
       final pair = (req.url.queryParameters['pair'] ?? 'USDKRW').toUpperCase();
@@ -70,7 +70,7 @@ void main(List<String> args) async {
     }
   });
 
-  // Price endpoint with Redis/Postgres + external fallback
+  // Redis/Postgres + 외부 폴백을 사용하는 가격 엔드포인트
   router.get('/v1/price/<symbol>', (Request req, String symbol) async {
     try {
       final quote = await repo.getPrice(symbol.toUpperCase());
@@ -86,7 +86,7 @@ void main(List<String> args) async {
     }
   });
 
-  // Price history endpoint
+  // 가격 히스토리 엔드포인트
   router.get('/v1/price/history/<symbol>', (Request req, String symbol) async {
     try {
       final startParam = req.url.queryParameters['start'];

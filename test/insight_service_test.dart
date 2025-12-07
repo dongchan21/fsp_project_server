@@ -15,9 +15,9 @@ void main() {
       final score = result['score'];
 
       expect(score['grade'], 'A');
-      expect(score['profit'], 30); // > 15% -> max score
-      expect(score['risk'], greaterThan(25)); // Low MDD -> high score
-      expect(score['efficiency'], 35); // Sharpe >= 1.5 -> max score
+      expect(score['profit'], 30); // > 15% -> 최대 점수
+      expect(score['risk'], greaterThan(25)); // 낮은 MDD -> 높은 점수
+      expect(score['efficiency'], 35); // Sharpe >= 1.5 -> 최대 점수
       
       expect(result['analysis']['profitability'], contains('높은 수익률'));
       expect(result['analysis']['risk'], contains('낮은 리스크'));
@@ -26,29 +26,29 @@ void main() {
 
     test('calculates medium score for average performance', () {
       final summary = {
-        'annualReturn': 0.10, // 10% (Same as S&P)
+        'annualReturn': 0.10, // 10% (S&P와 동일)
         'totalReturn': 0.20,
-        'mdd': -0.15, // -15% (Slightly worse than S&P)
-        'sharpe': 1.0, // 1.0 (Slightly worse than S&P 1.2)
+        'mdd': -0.15, // -15% (S&P보다 약간 나쁨)
+        'sharpe': 1.0, // 1.0 (S&P 1.2보다 약간 나쁨)
       };
 
       final result = generateScoreAndAnalysis(summary);
       final score = result['score'];
 
-      // Profit: 0.10 * 200 = 20
+      // 수익성: 0.10 * 200 = 20
       expect(score['profit'], 20);
       
-      // Risk: 35 - 0.9 * 15 = 35 - 13.5 = 21.5 -> 21 or 22
+      // 리스크: 35 - 0.9 * 15 = 35 - 13.5 = 21.5 -> 21 또는 22
       expect(score['risk'], closeTo(21, 1));
 
-      // Efficiency: Sharpe 1.0 -> 25
+      // 효율성: Sharpe 1.0 -> 25
       expect(score['efficiency'], 25);
 
-      // Total: 20 + 21.5 + 25 = 66.5 -> Grade C or B depending on scaling logic
-      // Logic: totalScaled = (total / 100 * 100) = total. 
-      // Wait, logic is: (total / 100 * (30 + 35 + 35)).clamp(0, 100);
-      // 30+35+35 = 100. So totalScaled == total.
-      // 66.5 -> Grade C (55 <= x < 70)
+      // 총점: 20 + 21.5 + 25 = 66.5 -> 스케일링 로직에 따라 등급 C 또는 B
+      // 로직: totalScaled = (total / 100 * 100) = total. 
+      // 잠시만요, 로직은: (total / 100 * (30 + 35 + 35)).clamp(0, 100);
+      // 30+35+35 = 100. 따라서 totalScaled == total.
+      // 66.5 -> 등급 C (55 <= x < 70)
       expect(score['grade'], anyOf('B', 'C')); 
     });
 
@@ -63,9 +63,9 @@ void main() {
       final result = generateScoreAndAnalysis(summary);
       final score = result['score'];
 
-      expect(score['profit'], 0); // Negative return -> 0
-      expect(score['risk'], 5); // High MDD -> min score 5
-      expect(score['efficiency'], 5); // Low Sharpe -> min score 5
+      expect(score['profit'], 0); // 마이너스 수익률 -> 0
+      expect(score['risk'], 5); // 높은 MDD -> 최소 점수 5
+      expect(score['efficiency'], 5); // 낮은 Sharpe -> 최소 점수 5
       
       expect(score['grade'], 'D');
       
@@ -74,14 +74,14 @@ void main() {
     });
 
     test('handles missing values gracefully', () {
-      final summary = <String, dynamic>{}; // Empty map
+      final summary = <String, dynamic>{}; // 빈 맵
 
       final result = generateScoreAndAnalysis(summary);
       final score = result['score'];
 
       expect(score['profit'], 0);
-      expect(score['risk'], 35); // MDD 0 -> max score
-      expect(score['efficiency'], 5); // Sharpe 0 -> min score
+      expect(score['risk'], 35); // MDD 0 -> 최대 점수
+      expect(score['efficiency'], 5); // Sharpe 0 -> 최소 점수
       
       expect(result['analysis'], isNotNull);
     });

@@ -59,7 +59,7 @@ void main() {
         when(mockRow2[0]).thenReturn(2);
         when(mockRow2[1]).thenReturn('Title 2');
         when(mockRow2[2]).thenReturn('Content 2');
-        when(mockRow2[3]).thenReturn({'symbol': 'GOOGL'}); // Already a map
+        when(mockRow2[3]).thenReturn({'symbol': 'GOOGL'}); // 이미 맵 형태
         when(mockRow2[4]).thenReturn(DateTime.parse('2023-01-02 12:00:00'));
         when(mockRow2[5]).thenReturn('User 2');
 

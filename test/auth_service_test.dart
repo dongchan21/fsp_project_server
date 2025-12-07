@@ -21,7 +21,7 @@ void main() {
   group('AuthService', () {
     group('signup', () {
       test('succeeds when email is unique', () async {
-        // Mock email check returns empty result
+        // 이메일 확인 모의 객체가 빈 결과를 반환하도록 설정
         when(mockConnection.query(
           any,
           substitutionValues: anyNamed('substitutionValues'),
@@ -39,7 +39,7 @@ void main() {
 
         expect(result['message'], 'User created successfully');
         
-        // Verify insert was called
+        // 삽입(INSERT)이 호출되었는지 검증
         verify(mockConnection.query(
           argThat(contains('INSERT INTO users')),
           substitutionValues: argThat(allOf(
@@ -51,7 +51,7 @@ void main() {
       });
 
       test('fails when email already exists', () async {
-        // Mock email check returns non-empty result
+        // 이메일 확인 모의 객체가 비어있지 않은 결과를 반환하도록 설정
         when(mockConnection.query(
           any,
           substitutionValues: anyNamed('substitutionValues'),
@@ -78,7 +78,7 @@ void main() {
         final digest = sha256.convert(bytes);
         final hash = digest.toString();
 
-        // Mock user lookup returns a row
+        // 사용자 조회 모의 객체가 행을 반환하도록 설정
         final mockRow = MockPostgreSQLResultRow();
         when(mockRow[0]).thenReturn(1); // id
         when(mockRow[1]).thenReturn(hash); // password_hash

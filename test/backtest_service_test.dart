@@ -11,14 +11,14 @@ void main() {
       final initialCapital = 1000.0;
       final dcaAmount = 0.0;
 
-      // Mock Data: AAPL grows 10% every month
-      // Jan 1: 100, Feb 1: 110, Mar 1: 121, Apr 1: 133.1
+      // 모의 데이터: AAPL이 매달 10%씩 성장
+      // 1월 1일: 100, 2월 1일: 110, 3월 1일: 121, 4월 1일: 133.1
       final stockData = {
         'AAPL': {
-          DateTime(2022, 12, 1): 100.0, // Prev month for Jan calculation
-          DateTime(2023, 1, 1): 110.0,  // Jan return: (110/100)-1 = 0.10
-          DateTime(2023, 2, 1): 121.0,  // Feb return: (121/110)-1 = 0.10
-          DateTime(2023, 3, 1): 133.1,  // Mar return: (133.1/121)-1 = 0.10
+          DateTime(2022, 12, 1): 100.0, // 1월 계산을 위한 전월 데이터
+          DateTime(2023, 1, 1): 110.0,  // 1월 수익률: (110/100)-1 = 0.10
+          DateTime(2023, 2, 1): 121.0,  // 2월 수익률: (121/110)-1 = 0.10
+          DateTime(2023, 3, 1): 133.1,  // 3월 수익률: (133.1/121)-1 = 0.10
         },
         'SPY': {
           DateTime(2022, 12, 1): 100.0,
@@ -38,10 +38,10 @@ void main() {
         stockData: stockData,
       );
 
-      // Expected:
-      // Month 1 (Jan): Start 1000 -> End 1100 (10%)
-      // Month 2 (Feb): Start 1100 -> End 1210 (10%)
-      // Month 3 (Mar): Start 1210 -> End 1331 (10%)
+      // 예상 결과:
+      // 1개월차 (1월): 시작 1000 -> 종료 1100 (10%)
+      // 2개월차 (2월): 시작 1100 -> 종료 1210 (10%)
+      // 3개월차 (3월): 시작 1210 -> 종료 1331 (10%)
       
       expect(result['totalReturn'], closeTo(0.331, 0.001)); // (1331/1000) - 1 = 0.331
       expect((result['history'] as List).last['value'], closeTo(1331.0, 0.1));
@@ -55,7 +55,7 @@ void main() {
       final initialCapital = 1000.0;
       final dcaAmount = 100.0;
 
-      // Mock Data: Flat market (0% return)
+      // 모의 데이터: 횡보장 (0% 수익률)
       final stockData = {
         'AAPL': {
           DateTime(2022, 12, 1): 100.0,
@@ -79,24 +79,24 @@ void main() {
         stockData: stockData,
       );
 
-      // Logic Check:
-      // Month 1 (Jan):
-      //   Start Value: 1000
-      //   Add DCA: 1000 + 100 = 1100
-      //   Return: 0%
-      //   End Value: 1100 * 1.0 = 1100
-      // Month 2 (Feb):
-      //   Start Value: 1100
-      //   Add DCA: 1100 + 100 = 1200
-      //   Return: 0%
-      //   End Value: 1200 * 1.0 = 1200
+      // 로직 확인:
+      // 1개월차 (1월):
+      //   시작 가치: 1000
+      //   DCA 추가: 1000 + 100 = 1100
+      //   수익률: 0%
+      //   종료 가치: 1100 * 1.0 = 1100
+      // 2개월차 (2월):
+      //   시작 가치: 1100
+      //   DCA 추가: 1100 + 100 = 1200
+      //   수익률: 0%
+      //   종료 가치: 1200 * 1.0 = 1200
       
-      // Total Invested: 1000 (Initial) + 100 (Jan) + 100 (Feb) = 1200?
-      // Wait, let's check the loop logic in BacktestService.dart:
+      // 총 투자금: 1000 (초기) + 100 (1월) + 100 (2월) = 1200?
+      // 잠시만요, BacktestService.dart의 루프 로직을 확인해 봅시다:
       // portfolioValueKRW = (portfolioValueKRW + dcaAmount) * (1 + monthReturn);
       // investedKRW += dcaAmount;
       
-      // It adds DCA *before* the monthly return calculation.
+      // 월별 수익률 계산 *전에* DCA를 추가합니다.
       
       expect((result['history'] as List).last['value'], closeTo(1200.0, 0.1));
       expect(result['totalReturn'], closeTo(0.0, 0.001)); // (1200 / 1200) - 1 = 0

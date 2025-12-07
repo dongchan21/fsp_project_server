@@ -13,7 +13,7 @@ Future<Map<String, dynamic>> runBacktest({
   required double initialCapital,
   required double dcaAmount,
 }) async {
-  // Prefetch monthly first trading day rows from listing to current month, and compute adjusted start
+  // 상장일부터 현재 월까지의 월별 첫 거래일 데이터를 미리 가져와서, 조정된 시작일을 계산합니다.
   final earliestMap = await MarketDataService.prefetchMonthlyFirstDay(symbols);
   DateTime adjustedStart = firstOfMonth(startDate);
   if (earliestMap.isNotEmpty) {
@@ -26,10 +26,10 @@ Future<Map<String, dynamic>> runBacktest({
     }
   }
   final stockData = await MarketDataService.loadPriceHistoryFromApi({...symbols, 'SPY'}.toList(), adjustedStart, endDate);
-  // final usdkrw = await MarketDataService.loadExchangeRatesFromApi(adjustedStart, endDate); // currently unused; placeholder for FX conversion
+  // final usdkrw = await MarketDataService.loadExchangeRatesFromApi(adjustedStart, endDate); // 현재 사용되지 않음; FX 변환을 위한 플레이스홀더
 
-  // Fallback: if prefetch did not yield earliest dates (e.g., service down),
-  // adjust start based on actual earliest data in loaded history.
+  // 대체: 미리 가져오기가 가장 빠른 날짜를 산출하지 못한 경우 (예: 서비스 다운),
+  // 로드된 히스토리의 실제 가장 빠른 데이터를 기반으로 시작일을 조정합니다.
   if (earliestMap.isEmpty) {
     DateTime? latestEarliestFromData;
     for (final sym in symbols) {
@@ -78,11 +78,11 @@ Map<String, dynamic> calculateBacktestLogic({
   double investedKRW = initialCapital;
   final portfolioGrowth = <Map<String, dynamic>>[];
 
-  // Benchmark (SPY) variables
+  // 벤치마크 (SPY) 변수
   double benchmarkValueKRW = initialCapital;
   final benchmarkGrowth = <Map<String, dynamic>>[];
 
-  // Annual Returns Tracking
+  // 연간 수익률 추적
   final portfolioAnnualReturns = <int, double>{};
   final benchmarkAnnualReturns = <int, double>{};
   final monthlyReturns = <double>[];

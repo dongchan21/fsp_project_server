@@ -19,7 +19,7 @@ class CsvLoader {
     return data;
   }
 
-  // ✅ 테스트 가능한 순수 함수로 분리
+  // 테스트 가능한 순수 함수로 분리
   static Map<DateTime, double> parseStockCsv(List<String> lines, String ticker) {
     final prices = <DateTime, double>{};
 
@@ -27,11 +27,11 @@ class CsvLoader {
       var line = lines[i].trim();
       if (line.isEmpty) continue;
 
-      // ✅ 따옴표와 쉼표 문제 해결
+      // 따옴표와 쉼표 문제 해결
       line = line.replaceAll('"', '');
       final parts = line.split(',');
 
-      // ✅ 두 컬럼(date, close)만 사용
+      // 두 컬럼(date, close)만 사용
       if (parts.length < 2) continue;
 
       final dateString = parts[0].trim();
@@ -60,7 +60,7 @@ class CsvLoader {
     return parseCurrencyCsv(lines);
   }
 
-  // ✅ 테스트 가능한 순수 함수로 분리
+  // 테스트 가능한 순수 함수로 분리
   static Map<DateTime, double> parseCurrencyCsv(List<String> lines) {
     final rates = <DateTime, double>{};
 
@@ -68,17 +68,17 @@ class CsvLoader {
       var line = lines[i].trim();
       if (line.isEmpty) continue;
 
-      // ✅ 따옴표 제거
+      // 따옴표 제거
       line = line.replaceAll('"', '');
 
-      // ✅ 쉼표 문제 해결: 구분자(,)가 여러 개 있을 수 있으므로 split 제한
+      // 쉼표 문제 해결: 구분자(,)가 여러 개 있을 수 있으므로 split 제한
       final parts = line.split(',');
       if (parts.length < 2) continue;
 
-      // ✅ 날짜 부분은 첫 번째 요소
+      // 날짜 부분은 첫 번째 요소
       final dateString = parts.first.trim();
 
-      // ✅ 나머지 숫자 부분을 합쳐서 쉼표 제거
+      // 나머지 숫자 부분을 합쳐서 쉼표 제거
       final numberString =
           parts.sublist(1).join('').replaceAll(',', '').trim();
 

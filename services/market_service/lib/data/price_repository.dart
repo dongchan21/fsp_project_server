@@ -36,7 +36,7 @@ class PriceRepository {
     final cacheKey = 'price:$symbol';
     _log.info('price_fetch_start symbol=${symbol.toUpperCase()}');
 
-    // 1. Redis cache
+    // 1. Redis 캐시
     final cached = await _redis.send_object(['GET', cacheKey]);
     if (cached is String) {
       final data = jsonDecode(cached) as Map<String, dynamic>;
@@ -45,7 +45,7 @@ class PriceRepository {
       return quote;
     }
 
-    // 2. DB lookup (latest date)
+    // 2. DB 조회 (최신 날짜)
     final rows = await _pg.mappedResultsQuery(
       'SELECT id, symbol, date, close FROM price WHERE symbol = @symbol ORDER BY date DESC LIMIT 1',
       substitutionValues: {'symbol': symbol},
@@ -79,11 +79,11 @@ class PriceRepository {
       return quote;
     }
 
-    // 3. External fetch (fetcher already upserts into DB with ON CONFLICT)
+    // 3. 외부 데이터 가져오기 (fetcher가 이미 ON CONFLICT로 DB에 upsert함)
     final fetched = await _fetchExternal(symbol);
     _log.info('price_source=external symbol=${fetched.symbol} date=${fetched.date.toIso8601String()} close=${fetched.close}');
 
-    // 4. Cache only (avoid duplicate insert / potential unique constraint conflict)
+    // 4. 캐시만 수행 (중복 삽입 / 잠재적 고유 제약 조건 충돌 방지)
     await _cacheQuote(cacheKey, fetched);
     return fetched;
   }

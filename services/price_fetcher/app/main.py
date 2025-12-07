@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import psycopg
 from psycopg.rows import dict_row
 
-# Environment configuration
+# 환경 설정
 PG_HOST = os.getenv("POSTGRES_HOST", "localhost")
 PG_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
 PG_DB = os.getenv("POSTGRES_DB", "fsp")
@@ -49,7 +49,7 @@ VALUES (%s, %s, %s)
 ON CONFLICT (symbol, date) DO UPDATE SET close = EXCLUDED.close
 """
 
-# Ensure required index/constraint exist (id primary key already assumed)
+# 필수 인덱스/제약 조건이 존재하는지 확인 (id 기본 키는 이미 가정됨)
 SQL_ENSURE_UNIQUE = """
 DO $$
 BEGIN
@@ -95,7 +95,7 @@ async def startup():
             print("🟢 [DB] PostgreSQL connection successful!")
             
             async with conn.cursor() as cur:
-                # 1) Ensure table exists
+                # 1) 테이블 'price'가 존재하는지 확인
                 print("🔵 [DB] Ensuring table 'price' exists...")
                 await cur.execute(SQL_CREATE_TABLE)
                 

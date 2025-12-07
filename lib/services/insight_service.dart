@@ -58,20 +58,20 @@ Map<String, dynamic> generateScoreAndAnalysis(Map<String, dynamic> summary) {
 
   // ---------------- 텍스트 생성 ----------------
 
-  // ✅ 수익성
+  // 수익성
   String profitText =
       "연평균 수익률 ${(annualReturn * 100).toStringAsFixed(1)}%로, "
       "S&P500 평균(${(spAnnual * 100).toStringAsFixed(1)}%)에 비해 "
       "${returnDiff.abs().toStringAsFixed(1)}% ${returnTrend} 수익률입니다. "
       "총 누적 수익률은 +${(totalReturn * 100).toStringAsFixed(1)}%로 평가됩니다.";
 
-  // ✅ 리스크
+  // 리스크
   String riskText =
       "최대 낙폭(MDD)은 ${mdd.toStringAsFixed(1)}%로, "
       "S&P500 평균 하락폭(${spMdd.toStringAsFixed(1)}%) 대비 "
       "${mddDiff.abs().toStringAsFixed(1)}% ${riskTrend} 리스크를 보입니다.";
 
-  // ✅ 위험 대비 효율
+  // 위험 대비 효율
   String sharpeText =
       "샤프 비율은 ${sharpe.toStringAsFixed(2)}로, "
       "S&P500 평균(${spSharpe.toStringAsFixed(2)}) 대비 "

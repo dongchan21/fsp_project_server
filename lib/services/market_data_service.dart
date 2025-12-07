@@ -47,10 +47,10 @@ class MarketDataService {
     return data;
   }
 
-  // Prefetch monthly first trading day data from listing to current month, and return earliest date per symbol.
+  // 상장일부터 현재 월까지 월별 첫 거래일 데이터를 프리페치하고, 종목별 가장 빠른 날짜를 반환합니다.
   static Future<Map<String, DateTime>> prefetchMonthlyFirstDay(List<String> symbols, {http.Client? client}) async {
     final base = _marketBaseUrl;
-    // Always backfill from a far past date; yfinance returns from the first listing date.
+    // 항상 먼 과거 날짜부터 백필합니다; yfinance는 첫 상장일부터 반환합니다.
     final start = '2000-01-01';
     final now = DateTime.now();
     final end = ymd(firstOfMonth(DateTime(now.year, now.month)));
@@ -69,7 +69,7 @@ class MarketDataService {
           continue;
         }
         if (resp.statusCode != 200) {
-          // Log but do not fail the entire backtest; fallback to history anyway.
+          // 로그를 남기지만 전체 백테스트를 실패시키지 않습니다; 어쨌든 히스토리로 대체합니다.
           stderr.writeln('WARN monthly_firstday_prefetch_failed symbol=$symbol status=${resp.statusCode} body=${resp.body}');
           continue;
         }
@@ -82,7 +82,7 @@ class MarketDataService {
             result[symbol.toUpperCase()] = firstOfMonth(dt);
           }
         } catch (_) {
-          // ignore parse errors, rely on history fetch later
+          // 파싱 오류 무시, 나중에 히스토리 페치에 의존
         }
       }
     } finally {

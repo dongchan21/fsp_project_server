@@ -7,7 +7,7 @@ import '../services/ai_insight_service.dart';
 Router insightRoutes() {
   final router = Router();
 
-  // ✅ /api/insight/analyze
+  // /api/insight/analyze
   router.post('/analyze', (Request request) async {
     try {
       final body = await request.readAsString();
@@ -39,7 +39,7 @@ Router insightRoutes() {
     }
   });
 
-  // ✅ /api/insight/ai
+  // /api/insight/ai
   router.post('/ai', (Request request) async {
     try {
       final body = await request.readAsString();

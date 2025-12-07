@@ -23,7 +23,7 @@ void main() {
 
         await DbUtils.initTables(connection: mockConnection);
 
-        // Verify that query was called 3 times (users, posts, backtest_history)
+        // 쿼리가 3번 호출되었는지 검증 (users, posts, backtest_history)
         verify(mockConnection.query(argThat(contains('CREATE TABLE IF NOT EXISTS users')))).called(1);
         verify(mockConnection.query(argThat(contains('CREATE TABLE IF NOT EXISTS posts')))).called(1);
         verify(mockConnection.query(argThat(contains('CREATE TABLE IF NOT EXISTS backtest_history')))).called(1);
